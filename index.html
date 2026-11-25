@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AEST | Streetwear</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg:#101010; --panel:#191919; --line:#303030; --muted:#a1a1aa; --white:#f5f5f5; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--white); font-family:'Montserrat',sans-serif; }
+    .editorial { font-family:'Cormorant Garamond',serif; }
+    .hero { min-height:390px; background:#242424 center/cover no-repeat; position:relative; }
+    .hero:before { content:''; position:absolute; inset:0; background:linear-gradient(90deg,rgba(0,0,0,.78),rgba(0,0,0,.24)); }
+    .product-card { background:#191919; border:1px solid #303030; border-radius:20px; overflow:hidden; cursor:pointer; transition:transform .22s,border-color .22s,box-shadow .22s; }
+    .product-card:hover { transform:translateY(-4px); border-color:#777; box-shadow:0 14px 34px rgba(0,0,0,.28); }
+    .product-card:active { transform:scale(.985); }
+    .product-detail { width:min(100%,760px); max-height:94vh; overflow:auto; background:#171717; border:1px solid #383838; border-radius:24px; }
+    .detail-image { width:100%; aspect-ratio:4/5; max-height:62vh; object-fit:cover; background:#252525; border-radius:16px; }
+    .detail-thumb { width:58px;height:68px;flex:0 0 auto;object-fit:cover;border:1px solid #444;border-radius:9px;cursor:pointer; }
+    .detail-thumb.active { border:2px solid #fff; }
+    .toast { position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);opacity:0;pointer-events:none;z-index:90;background:#f5f5f5;color:#111;padding:13px 20px;border-radius:999px;font-size:12px;font-weight:800;box-shadow:0 8px 30px #0008;transition:.25s;white-space:nowrap; }
+    .toast.show { opacity:1;transform:translate(-50%,0); }
+    .product-image { width:100%; aspect-ratio:4/5; object-fit:cover; background:#252525; }
+    .pill { border:1px solid #444; color:#ddd; border-radius:999px; padding:8px 14px; font-size:12px; }
+    .pill.active { background:#f5f5f5; color:#111; border-color:#f5f5f5; }
+    .size-btn { border:1px solid #505050; border-radius:9px; min-width:38px; padding:7px 10px; font-size:12px; }
+    .size-btn.selected { background:#f5f5f5; color:#111; border-color:#f5f5f5; }
+    .size-btn:disabled { opacity:.3; text-decoration:line-through; cursor:not-allowed; }
+    /* Más aire entre las tallas y el botón de compra */
+    #detailSizes { row-gap:12px; column-gap:12px; margin-bottom:24px; }
+    #detailAddBtn { margin-top:12px; }
+    .cart-fly-dot { position:fixed; z-index:120; width:13px; height:13px; border-radius:50%; background:#050505; border:2px solid #fff; box-shadow:0 2px 12px rgba(0,0,0,.55); pointer-events:none; }
+    @keyframes cart-bump { 0%,100% { transform:scale(1); } 45% { transform:scale(1.28); } }
+    .cart-bump { animation:cart-bump .38s ease; }
+    .primary { background:#f5f5f5; color:#111; border-radius:999px; font-weight:700; }
+    .drawer { position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.7); display:none; }
+    .drawer.open { display:block; }
+    .drawer-panel { position:absolute; right:0; top:0; height:100%; width:min(100%,480px); overflow:auto; background:#141414; border-left:1px solid #333; }
+    .field { width:100%; background:#202020; border:1px solid #3c3c3c; border-radius:12px; padding:13px 14px; color:white; outline:none; font-size:13px; }
+    .field:focus { border-color:#aaa; }
+    .search-wrap { position:relative; }
+    .search-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#888; pointer-events:none; }
+    .search-clear { position:absolute; right:10px; top:50%; transform:translateY(-50%); border-radius:999px; padding:5px 9px; color:#bbb; font-size:17px; }
+    .search-results { min-height:16px; font-size:10px; color:#999; margin-top:7px; }
+    .modal { position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.78); padding:16px; }
+    .modal.open { display:flex; }
+    .modal-card { width:min(100%,460px); max-height:92vh; overflow:auto; background:#171717; border:1px solid #383838; border-radius:22px; padding:20px; }
+    .muted { color:#a1a1aa; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+  </style>
+</head>
+<body>
+  <header class="sticky top-0 z-40 border-b border-neutral-800 bg-black/95 backdrop-blur">
+    <div class="mx-auto grid max-w-7xl grid-cols-3 items-center px-4 py-3">
+      <div></div>
+      <div class="flex justify-center">
+        <img id="logo" class="hidden h-12 max-w-[150px] object-contain" alt="Logo AEST">
+        <div id="brandName" class="text-xl font-extrabold tracking-[.28em]">AEST</div>
+      </div>
+      <div class="flex justify-end">
+        <button class="rounded-full bg-white px-3 py-2 text-[10px] font-bold text-black shadow-lg" onclick="openCart()" aria-label="Abrir carrito">
+          <span class="inline-flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h2l2.4 12.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 8H6"/><circle cx="10" cy="21" r="1"/><circle cx="19" cy="21" r="1"/></svg> CARRITO <span id="cartCount" class="rounded-full bg-black px-1.5 py-0.5 text-[9px] text-white">0</span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <section id="hero" class="hero flex items-center">
+    <div class="relative z-10 mx-auto w-full max-w-7xl px-6 py-16">
+      <div class="mb-5 flex justify-center">
+        <img id="heroLogo" class="hidden max-h-32 max-w-[min(70vw,360px)] object-contain drop-shadow-2xl" alt="AEST">
+        <h1 id="heroBrand" class="text-5xl font-extrabold tracking-[.3em] text-white sm:text-7xl">AEST</h1>
+      </div>
+      <p class="mb-2 text-center text-[10px] tracking-[.4em] text-neutral-300">AEST / OVERSIZE COLLECTION</p>
+      <p id="presentation" class="mx-auto mt-4 max-w-sm text-center text-sm text-neutral-300">Poleras oversize · Streetwear</p>
+      <button class="primary mt-7 px-6 py-3 text-xs" onclick="document.getElementById('catalog').scrollIntoView({behavior:'smooth'})">EXPLORAR COLECCIÓN ↓</button>
+    </div>
+  </section>
+
+  <main id="catalog" class="mx-auto max-w-7xl px-4 py-9 sm:px-6">
+    <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p class="text-[10px] tracking-[.3em] text-neutral-500">THE AEST SELECTION</p>
+        <h2 class="editorial mt-1 text-4xl">La colección</h2>
+      </div>
+      <div class="w-full sm:max-w-xs">
+        <div class="search-wrap">
+          <span class="search-icon">⌕</span>
+          <input id="search" class="field pl-10 pr-10" type="search" placeholder="Busca tu próximo favorito..." autocomplete="off" oninput="renderProducts()" onkeydown="if(event.key==='Escape'){this.value='';renderProducts();}">
+          <button id="searchClear" class="search-clear hidden" type="button" aria-label="Limpiar búsqueda" onclick="clearSearch()">×</button>
+        </div>
+        <div id="searchResults" class="search-results">Explora toda la colección</div>
+      </div>
+    </div>
+    <div id="sizeFilters" class="mb-6 flex gap-2 overflow-x-auto pb-2"></div>
+    <div id="status" class="py-8 text-center text-sm muted">Cargando colección...</div>
+    <div id="products" class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4"></div>
+  </main>
+
+  <footer class="border-t border-neutral-800 px-4 py-8 text-center">
+    <div class="text-sm font-extrabold tracking-[.3em]">AEST</div>
+    <p class="mt-2 text-[10px] tracking-widest text-neutral-500">OVERSIZE · STREETWEAR · AREQUIPA</p>
+  </footer>
+
+  <div id="cartDrawer" class="drawer" onclick="if(event.target===this)closeCart()">
+    <div class="drawer-panel p-5 sm:p-7">
+      <div class="mb-6 flex items-center justify-between">
+        <div><p class="text-[10px] tracking-[.3em] text-neutral-500">AEST / YOUR SELECTION</p><h3 class="editorial text-3xl">Tu carrito</h3></div>
+        <button class="text-2xl text-neutral-400" onclick="closeCart()">×</button>
+      </div>
+      <div id="cartItems" class="space-y-4"></div>
+      <div class="mt-6 border-t border-neutral-800 pt-5">
+        <div class="flex items-center justify-between text-sm"><span class="muted">Total</span><strong id="cartTotal" class="text-xl">S/ 0.00</strong></div>
+        <button class="primary mt-5 w-full px-5 py-4 text-xs" onclick="openCheckout()">CONTINUAR CON EL PEDIDO</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="productModal" class="modal" onclick="if(event.target===this)closeProductModal()">
+    <div class="product-detail p-4 sm:p-6">
+      <div class="mb-4 flex items-center justify-between">
+        <p class="text-[10px] tracking-[.25em] text-neutral-500">AEST / PRODUCT DETAIL</p>
+        <button class="text-2xl text-neutral-400" onclick="closeProductModal()">×</button>
+      </div>
+      <div class="grid gap-5 sm:grid-cols-2">
+        <div>
+          <img id="detailImage" class="detail-image" alt="">
+          <div id="detailGallery" class="mt-3 flex gap-2 overflow-x-auto pb-1"></div>
+        </div>
+        <div class="flex flex-col">
+          <p class="text-[9px] tracking-[.25em] text-neutral-500">AEST / OVERSIZE</p>
+          <h3 id="detailName" class="editorial mt-2 text-4xl leading-tight"></h3>
+          <p id="detailPrice" class="mt-3 text-xl font-bold"></p>
+          <p id="detailStock" class="mt-2 text-xs text-neutral-400"></p>
+          <p class="mb-2 mt-7 text-[10px] font-bold tracking-[.2em] text-neutral-400">ELIGE TU TALLA</p>
+          <div id="detailSizes" class="flex flex-wrap gap-2"></div>
+          <button id="detailAddBtn" class="primary mt-auto w-full px-5 py-4 text-xs sm:mt-8" onclick="addSelectedDetailToCart()">AGREGAR AL CARRITO</button>
+          <p class="mt-3 text-center text-[10px] text-neutral-500">Selecciona tu talla para continuar</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="checkoutModal" class="modal" onclick="if(event.target===this)closeCheckout()">
+    <div class="modal-card">
+      <div class="mb-5 flex items-center justify-between">
+        <div><p class="text-[10px] tracking-[.25em] text-neutral-500">AEST / CHECKOUT</p><h3 class="editorial text-3xl">Finalizar pedido</h3></div>
+        <button class="text-2xl text-neutral-400" onclick="closeCheckout()">×</button>
+      </div>
+      <div class="space-y-3">
+        <input id="customerName" class="field" placeholder="Tu nombre" maxlength="80">
+        <input id="customerPhone" class="field" placeholder="Tu número de celular" inputmode="tel" maxlength="20">
+      </div>
+      <p class="mb-2 mt-5 text-[10px] font-bold tracking-[.2em] text-neutral-400">MODALIDAD DE ENTREGA</p>
+      <div class="grid grid-cols-2 gap-2">
+        <button id="deliveryBtn" class="rounded-xl border border-neutral-600 px-3 py-3 text-xs font-bold" onclick="setDelivery('DELIVERY')">DELIVERY</button>
+        <button id="pickupBtn" class="rounded-xl border border-neutral-600 px-3 py-3 text-xs font-bold" onclick="setDelivery('PUNTO DE RECOJO')">PUNTO DE RECOJO</button>
+      </div>
+      <div id="deliveryAddressWrap" class="mt-3 hidden">
+        <label class="mb-2 block text-xs text-neutral-400">DIRECCIÓN DE DELIVERY</label>
+        <textarea id="deliveryAddress" class="field" rows="2" maxlength="250" placeholder="Escribe tu dirección, distrito, referencia y número..."></textarea>
+      </div>
+      <div id="pickupPlaceWrap" class="mt-3 hidden">
+        <label class="mb-2 block text-xs text-neutral-400">LUGAR O DIRECCIÓN DE RECOJO</label>
+        <textarea id="pickupPlace" class="field" rows="2" maxlength="250" placeholder="Escribe el lugar donde deseas recoger tu pedido..."></textarea>
+      </div>
+      <div class="mt-3">
+        <textarea id="orderNote" class="field" rows="2" placeholder="Nota adicional (opcional)"></textarea>
+      </div>
+      <div id="checkoutError" class="mt-3 hidden whitespace-pre-line rounded-xl border border-red-900 bg-red-950/40 p-3 text-xs text-red-200"></div>
+      <button id="sendOrderBtn" class="mt-5 w-full rounded-full bg-white px-5 py-4 text-xs font-extrabold text-black" onclick="sendOrder()">ENVIAR PEDIDO POR WHATSAPP</button>
+      <p class="mt-3 text-center text-[10px] text-neutral-500">El stock se verifica antes de abrir WhatsApp. La venta se confirma con AEST.</p>
+    </div>
+  </div>
+
+<div id="toast" class="toast">¡Agregado a tu carrito!</div>
+
+<script>
+var catalogData = null;
+var productGroups = [];
+var cart = [];
+var activeFilter = 'Todos';
+var deliveryMode = '';
+var activeProduct = null;
+var activeVariantIndex = -1;
+var toastTimer = null;
+
+function money(value) {
+  return 'S/ ' + Number(value || 0).toFixed(2);
+}
+function escapeHtml(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, function(ch) {
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];
+  });
+}
+async function loadCatalog() {
+  var status = document.getElementById('status');
+  status.textContent = 'Cargando colección...';
+  try {
+    var response = await fetch('/.netlify/functions/catalog', { method: 'GET', headers: { 'Accept': 'application/json' } });
+    if (!response.ok) throw new Error('Error de conexión (' + response.status + ').');
+    var data = await response.json();
+    if (!data || !data.tienda || !Array.isArray(data.productos)) throw new Error('La respuesta del catálogo no tiene el formato esperado.');
+    catalogData = data;
+    document.getElementById('brandName').textContent = data.tienda.nombre || 'AEST';
+    document.getElementById('presentation').textContent = data.tienda.presentacion || 'Poleras oversize · Streetwear';
+    if (data.tienda.logoUrl) {
+      var logo = document.getElementById('logo');
+      logo.src = data.tienda.logoUrl;
+      logo.classList.remove('hidden');
+      document.getElementById('brandName').classList.add('hidden');
+      var heroLogo = document.getElementById('heroLogo');
+      heroLogo.src = data.tienda.logoUrl;
+      heroLogo.classList.remove('hidden');
+      document.getElementById('heroBrand').classList.add('hidden');
+    }
+    if (data.tienda.portadaUrl) {
+      document.getElementById('hero').style.backgroundImage = "url('" + data.tienda.portadaUrl.replace(/'/g, '%27') + "')";
+    }
+    buildGroups(data.productos || []);
+    buildFilters();
+    renderProducts();
+  } catch (error) {
+    status.textContent = 'No se pudo cargar el catálogo. ' + (error.message || 'Verifica tu conexión e inténtalo nuevamente.');
+  }
+}
+function buildGroups(rows) {
+  var map = {};
+  rows.forEach(function(row) {
+    var key = String(row.producto).trim().toLowerCase();
+    if (!map[key]) map[key] = { name:row.producto, image:row.imagenUrl, images:[], variants:[] };
+    if (row.imagenUrl && map[key].images.indexOf(row.imagenUrl) === -1) map[key].images.push(row.imagenUrl);
+    (row.galeria || []).forEach(function(url) {
+      if (url && map[key].images.indexOf(url) === -1) map[key].images.push(url);
+    });
+    if (!map[key].image && row.imagenUrl) map[key].image = row.imagenUrl;
+    map[key].variants.push({ row:row.id, talla:row.talla, precio:Number(row.precio || 0), stock:Number(row.stock || 0) });
+  });
+  productGroups = Object.keys(map).map(function(key) { return map[key]; });
+}
+function buildFilters() {
+  var filters = ['Todos'];
+  var container = document.getElementById('sizeFilters');
+  container.innerHTML = '';
+  filters.forEach(function(label) {
+    var button = document.createElement('button');
+    button.className = 'pill active';
+    button.textContent = label;
+    button.onclick = function() { activeFilter = label; buildFilters(); renderProducts(); };
+    container.appendChild(button);
+  });
+}
+function renderProducts() {
+  var searchInput = document.getElementById('search');
+  var query = searchInput.value.toLowerCase().trim();
+  document.getElementById('searchClear').classList.toggle('hidden', !query);
+  var filtered = productGroups.filter(function(product) { return product.name.toLowerCase().indexOf(query) !== -1; });
+  var container = document.getElementById('products');
+  var status = document.getElementById('status');
+  container.innerHTML = '';
+  status.textContent = filtered.length ? '' : 'No encontramos productos con esa búsqueda.';
+  document.getElementById('searchResults').textContent = query ? (filtered.length ? filtered.length + (filtered.length === 1 ? ' producto encontrado' : ' productos encontrados') : 'Prueba con otro nombre o palabra clave') : 'Explora toda la colección';
+  filtered.forEach(function(product) {
+    var available = product.variants.some(function(v) { return v.stock > 0; });
+    var price = product.variants.length ? Math.min.apply(null, product.variants.map(function(v){return v.precio;})) : 0;
+    var card = document.createElement('article');
+    card.className = 'product-card';
+    card.setAttribute('role','button');
+    card.setAttribute('tabindex','0');
+    card.innerHTML =
+      '<div class="relative">' +
+        '<img class="product-image" src="' + escapeHtml(product.image || '') + '" alt="' + escapeHtml(product.name) + '" loading="lazy" onerror="this.style.opacity=.15">' +
+        '<span class="absolute left-3 top-3 rounded-full ' + (available ? 'bg-white text-black' : 'bg-neutral-700 text-white') + ' px-3 py-1 text-[9px] font-bold tracking-wider">' + (available ? 'DISPONIBLE' : 'SIN STOCK') + '</span>' +
+        '<span class="absolute bottom-3 right-3 rounded-full bg-black/75 px-3 py-2 text-[9px] font-bold tracking-wider">VER PRODUCTO ↗</span>' +
+      '</div>' +
+      '<div class="p-3 sm:p-4">' +
+        '<p class="text-[9px] tracking-[.2em] text-neutral-500">AEST / OVERSIZE</p>' +
+        '<h3 class="mt-1 min-h-10 text-sm font-bold">' + escapeHtml(product.name) + '</h3>' +
+        '<div class="mt-2 flex items-center justify-between"><p class="text-sm font-bold">Desde ' + money(price) + '</p><span class="text-lg">＋</span></div>' +
+      '</div>';
+    card.onclick = function(){ openProductModal(product); };
+    card.onkeydown = function(e){ if(e.key==='Enter' || e.key===' '){e.preventDefault();openProductModal(product);} };
+    container.appendChild(card);
+  });
+}
+function clearSearch(){document.getElementById('search').value='';renderProducts();document.getElementById('search').focus();}
+function openProductModal(product) {
+  activeProduct = product;
+  activeVariantIndex = -1;
+  document.getElementById('detailName').textContent = product.name;
+  document.getElementById('detailPrice').textContent = product.variants.length ? 'Desde ' + money(Math.min.apply(null,product.variants.map(function(v){return v.precio;}))) : money(0);
+  var images = product.images && product.images.length ? product.images : (product.image ? [product.image] : []);
+  document.getElementById('detailImage').src = images[0] || '';
+  document.getElementById('detailGallery').innerHTML = '';
+  images.forEach(function(url,index){
+    var thumb=document.createElement('img'); thumb.src=url; thumb.className='detail-thumb'+(index===0?' active':'');
+    thumb.onclick=function(){document.getElementById('detailImage').src=url;document.querySelectorAll('.detail-thumb').forEach(function(t){t.classList.remove('active');});thumb.classList.add('active');};
+    document.getElementById('detailGallery').appendChild(thumb);
+  });
+  var sizes=document.getElementById('detailSizes'); sizes.innerHTML='';
+  product.variants.forEach(function(variant,index){
+    var btn=document.createElement('button'); btn.className='size-btn'; btn.textContent=(variant.talla||'Única')+(variant.stock>0?'':' · AGOTADO'); btn.disabled=variant.stock<=0;
+    btn.onclick=function(){
+      activeVariantIndex=index;
+      sizes.querySelectorAll('button').forEach(function(b){b.classList.remove('selected');}); btn.classList.add('selected');
+      document.getElementById('detailPrice').textContent=money(variant.precio);
+      document.getElementById('detailStock').textContent='Talla seleccionada: '+(variant.talla||'Única');
+      document.getElementById('detailAddBtn').disabled=false;
+    };
+    sizes.appendChild(btn);
+  });
+  var totalStock=product.variants.reduce(function(sum,v){return sum+v.stock;},0);
+  document.getElementById('detailStock').textContent=totalStock>0?'Elige la talla que deseas':'Producto agotado';
+  document.getElementById('detailAddBtn').disabled=totalStock<=0;
+  document.getElementById('detailAddBtn').textContent='AGREGAR AL CARRITO';
+  document.getElementById('productModal').classList.add('open');
+}
+function closeProductModal(){document.getElementById('productModal').classList.remove('open');}
+function addSelectedDetailToCart(){
+  if(!activeProduct || activeVariantIndex<0){showToast('Primero selecciona una talla');return;}
+  var variant=activeProduct.variants[activeVariantIndex];
+  if (addToCart(activeProduct,variant)) {
+    animateCartDot(document.getElementById('detailAddBtn'));
+    closeProductModal();
+    showToast('¡'+activeProduct.name+' agregado al carrito!');
+  }
+}
+function showToast(message){
+  var toast=document.getElementById('toast'); toast.textContent=message; toast.classList.add('show');
+  if(toastTimer) clearTimeout(toastTimer); toastTimer=setTimeout(function(){toast.classList.remove('show');},2200);
+}
+function animateCartDot(sourceButton) {
+  var cartButton = document.querySelector('header button[aria-label="Abrir carrito"]');
+  if (!sourceButton || !cartButton || !sourceButton.getBoundingClientRect || !cartButton.getBoundingClientRect) return;
+  var from = sourceButton.getBoundingClientRect();
+  var to = cartButton.getBoundingClientRect();
+  var dot = document.createElement('span');
+  dot.className = 'cart-fly-dot';
+  dot.style.left = (from.left + from.width / 2 - 6) + 'px';
+  dot.style.top = (from.top + from.height / 2 - 6) + 'px';
+  document.body.appendChild(dot);
+  var dx = (to.left + to.width / 2) - (from.left + from.width / 2);
+  var dy = (to.top + to.height / 2) - (from.top + from.height / 2);
+  var animation = dot.animate([
+    { transform:'translate(0,0) scale(1)', opacity:1 },
+    { transform:'translate(' + (dx * .55) + 'px,' + (dy * .55 - 35) + 'px) scale(.85)', opacity:1, offset:.55 },
+    { transform:'translate(' + dx + 'px,' + dy + 'px) scale(.25)', opacity:.15 }
+  ], { duration:620, easing:'cubic-bezier(.2,.75,.25,1)' });
+  animation.onfinish = function(){ dot.remove(); cartButton.classList.remove('cart-bump'); void cartButton.offsetWidth; cartButton.classList.add('cart-bump'); };
+}
+function addToCart(product, variant) {
+  var key = product.name.toLowerCase() + '|' + variant.talla.toLowerCase();
+  var found = cart.find(function(item) { return item.key === key; });
+  var currentQty = found ? found.cantidad : 0;
+  if (currentQty + 1 > variant.stock) { alert('No hay suficiente stock para esa talla.'); return false; }
+  if (found) found.cantidad += 1;
+  else cart.push({
+    key:key, producto:product.name, talla:variant.talla, precio:variant.precio,
+    cantidad:1, stock:variant.stock, row:variant.row, imagen:product.image
+  });
+  updateCart();
+  return true;
+}
+function updateCart() {
+  var count = cart.reduce(function(sum, item) { return sum + item.cantidad; }, 0);
+  document.getElementById('cartCount').textContent = count;
+  document.getElementById('cartItems').innerHTML = '';
+  if (!cart.length) {
+    document.getElementById('cartItems').innerHTML = '<p class="py-10 text-center text-sm muted">Tu carrito está vacío.</p>';
+  }
+  cart.forEach(function(item, index) {
+    var row = document.createElement('div');
+    row.className = 'flex gap-3 border-b border-neutral-800 pb-4';
+    row.innerHTML =
+      '<img src="' + escapeHtml(item.imagen || '') + '" class="h-24 w-20 rounded-xl bg-neutral-800 object-cover" alt="">' +
+      '<div class="min-w-0 flex-1">' +
+        '<div class="text-sm font-bold">' + escapeHtml(item.producto) + '</div>' +
+        '<div class="mt-1 text-xs muted">Talla: ' + escapeHtml(item.talla) + '</div>' +
+        '<div class="mt-1 text-xs">' + money(item.precio) + '</div>' +
+        '<div class="mt-3 flex items-center gap-3">' +
+          '<button class="rounded-full border border-neutral-600 px-2" onclick="changeQty(' + index + ',-1)">−</button>' +
+          '<span class="text-xs">' + item.cantidad + '</span>' +
+          '<button class="rounded-full border border-neutral-600 px-2" onclick="changeQty(' + index + ',1)">+</button>' +
+          '<button class="ml-auto text-xs text-neutral-400 underline" onclick="removeItem(' + index + ')">Eliminar</button>' +
+        '</div>' +
+      '</div>';
+    document.getElementById('cartItems').appendChild(row);
+  });
+  var total = cart.reduce(function(sum, item) { return sum + item.precio * item.cantidad; }, 0);
+  document.getElementById('cartTotal').textContent = money(total);
+}
+function changeQty(index, delta) {
+  var item = cart[index];
+  var next = item.cantidad + delta;
+  if (next < 1) return;
+  if (next > item.stock) { alert('Stock máximo disponible: ' + item.stock); return; }
+  item.cantidad = next;
+  updateCart();
+}
+function removeItem(index) { cart.splice(index, 1); updateCart(); }
+function openCart() { document.getElementById('cartDrawer').classList.add('open'); }
+function closeCart() { document.getElementById('cartDrawer').classList.remove('open'); }
+function openCheckout() {
+  if (!cart.length) { alert('Agrega al menos un producto.'); return; }
+  closeCart();
+  document.getElementById('checkoutModal').classList.add('open');
+}
+function closeCheckout() { document.getElementById('checkoutModal').classList.remove('open'); }
+function setDelivery(mode) {
+  deliveryMode = mode;
+  var delivery = document.getElementById('deliveryBtn');
+  var pickup = document.getElementById('pickupBtn');
+  delivery.className = 'rounded-xl border px-3 py-3 text-xs font-bold ' + (mode === 'DELIVERY' ? 'border-white bg-white text-black' : 'border-neutral-600');
+  pickup.className = 'rounded-xl border px-3 py-3 text-xs font-bold ' + (mode === 'PUNTO DE RECOJO' ? 'border-white bg-white text-black' : 'border-neutral-600');
+  document.getElementById('pickupPlaceWrap').classList.toggle('hidden', mode !== 'PUNTO DE RECOJO');
+  document.getElementById('deliveryAddressWrap').classList.toggle('hidden', mode !== 'DELIVERY');
+}
+function showCheckoutError(message) {
+  var box = document.getElementById('checkoutError');
+  box.textContent = message;
+  box.classList.remove('hidden');
+}
+async function sendOrder() {
+  var name = document.getElementById('customerName').value.trim();
+  var phone = document.getElementById('customerPhone').value.trim();
+  var deliveryAddress = document.getElementById('deliveryAddress').value.trim();
+  var pickupPlace = document.getElementById('pickupPlace').value.trim();
+  var note = document.getElementById('orderNote').value.trim();
+  document.getElementById('checkoutError').classList.add('hidden');
+  if (!name || !phone) { showCheckoutError('Completa tu nombre y número de celular.'); return; }
+  if (!deliveryMode) { showCheckoutError('Selecciona DELIVERY o PUNTO DE RECOJO.'); return; }
+  if (deliveryMode === 'DELIVERY' && !deliveryAddress) {
+    showCheckoutError('Escribe la dirección donde deseas recibir tu pedido.'); return;
+  }
+  if (deliveryMode === 'PUNTO DE RECOJO' && !pickupPlace) {
+    showCheckoutError('Escribe el lugar donde deseas recoger tu pedido.'); return;
+  }
+  var button = document.getElementById('sendOrderBtn');
+  button.disabled = true;
+  button.textContent = 'VERIFICANDO STOCK...';
+  var items = cart.map(function(item) {
+    return { row:item.row, producto:item.producto, talla:item.talla, cantidad:item.cantidad };
+  });
+  try {
+    var response = await fetch('/.netlify/functions/validate-stock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ items: items })
+    });
+    if (!response.ok) throw new Error('No se pudo validar el stock (' + response.status + ').');
+    var result = await response.json();
+    if (!result || !result.ok) {
+      showCheckoutError(result && result.message ? result.message : 'No se pudo validar el stock.');
+      return;
+    }
+    var total = cart.reduce(function(sum, item) { return sum + item.precio * item.cantidad; }, 0);
+    var lines = [
+      '*AEST - NUEVO PEDIDO*',
+      '------------------------------',
+      '*DATOS DEL CLIENTE*',
+      'Nombre: ' + name,
+      'Celular: ' + phone,
+      '',
+      '*ENTREGA*',
+      'Modalidad: ' + deliveryMode
+    ];
+    if (deliveryMode === 'DELIVERY') lines.push('Dirección: ' + deliveryAddress);
+    if (deliveryMode === 'PUNTO DE RECOJO') lines.push('Lugar de recojo: ' + pickupPlace);
+    lines.push('', '*PRODUCTOS*');
+    cart.forEach(function(item, index) {
+      lines.push((index + 1) + '. *' + item.producto + '*');
+      lines.push('   Talla: ' + item.talla + '  |  Cantidad: ' + item.cantidad);
+      lines.push('   Precio unitario: ' + money(item.precio));
+      lines.push('   Subtotal: ' + money(item.precio * item.cantidad));
+    });
+    lines.push('', '------------------------------', '*TOTAL DEL PEDIDO: ' + money(total) + '*');
+    if (note) lines.push('', '*NOTA:* ' + note);
+    lines.push('', '¡Gracias! Quedo atento/a a la confirmación del pedido.');
+    var phoneNumber = catalogData && catalogData.tienda.whatsapp ? catalogData.tienda.whatsapp : '51974407321';
+    phoneNumber = String(phoneNumber).replace(/\D/g, '');
+    var url = 'https://api.whatsapp.com/send?phone=' + phoneNumber + '&text=' + encodeURIComponent(lines.join('\n'));
+    window.location.href = url;
+  } catch (error) {
+    showCheckoutError(error.message || 'Error al validar el stock.');
+  } finally {
+    button.disabled = false;
+    button.textContent = 'ENVIAR PEDIDO POR WHATSAPP';
+  }
+}
+
+loadCatalog();
+</script>
+</body>
+</html>

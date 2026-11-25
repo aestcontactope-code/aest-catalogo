@@ -1,0 +1,48 @@
+AEST | CATÁLOGO EXTERNO PARA NETLIFY
+===================================
+
+QUÉ CONTIENE
+- index.html: catálogo AEST adaptado para funcionar fuera del iframe de Apps Script.
+- netlify/functions/catalog.js: puente servidor a servidor para leer productos.
+- netlify/functions/validate-stock.js: puente para validar stock antes de abrir WhatsApp.
+- Code.gs: versión completa del Apps Script con dos rutas API nuevas, conservando el catálogo anterior y el panel administrativo.
+- netlify.toml: configuración de publicación.
+
+IMPORTANTE
+No reemplaces aún tu proyecto actual ni borres la implementación anterior. Primero se prepara el nuevo sitio y se prueba. El enlace actual seguirá funcionando mientras tanto.
+
+PASO 1 — ACTUALIZAR APPS SCRIPT
+1. Abre el proyecto de Apps Script vinculado a tu hoja CATALOGO MIM.
+2. Haz una copia del contenido actual de Codigo.gs por seguridad.
+3. Reemplaza TODO el contenido de Codigo.gs por el archivo Code.gs incluido aquí.
+4. No cambies Sidebar.html ni elimines Index.html: el catálogo anterior se conserva como respaldo.
+5. Guarda.
+6. Ve a Implementar > Gestionar implementaciones > Editar (lápiz) > Nueva versión > Implementar.
+7. Conserva el acceso configurado como Cualquier persona y copia la URL /exec de la implementación.
+
+PASO 2 — PUBLICAR EN NETLIFY
+Las funciones de servidor de este proyecto deben publicarse junto con la página. Por eso se recomienda conectar el proyecto desde GitHub (no usar solo arrastrar y soltar archivos estáticos).
+1. Crea una cuenta o inicia sesión en https://app.netlify.com/.
+2. Sube el contenido de la carpeta aest-netlify-site a un repositorio nuevo de GitHub. Deben quedar index.html, netlify.toml, package.json y la carpeta netlify/functions/ en la raíz del repositorio.
+3. En Netlify elige Add new site > Import an existing project > GitHub y autoriza el acceso al repositorio.
+4. Deja el comando de build vacío y el directorio de publicación como . (Netlify.toml ya incluye la configuración de funciones).
+5. En el sitio, abre Site configuration > Environment variables.
+6. Crea la variable:
+   Key: AEST_APPS_SCRIPT_URL
+   Value: pega la URL /exec de tu implementación actualizada de Apps Script.
+7. Guarda la variable y vuelve a desplegar el sitio para que las funciones la reciban.
+
+PASO 3 — PRUEBAS ANTES DE CAMBIAR EL BIOPIC
+1. Abre la URL asignada por Netlify en Chrome.
+2. Confirma que aparecen logo, portada y productos.
+3. Abre el mismo enlace dentro de Instagram y confirma que carga.
+4. Prueba seleccionar talla, agregar al carrito y validar un pedido de prueba hasta antes de enviarlo.
+5. No confirmes ventas de prueba ni cambies el stock para probar.
+6. Solo después de comprobarlo, cambia el destino del enlace de tu biopic/enlace corto a la URL de Netlify.
+
+NOTAS
+- Google Sheets continúa siendo la fuente de productos, tallas, precios y stock.
+- Google Drive continúa alojando logo, portada y fotos.
+- WhatsApp conserva el número configurado en tu hoja.
+- El sitio externo no usa google.script.run desde el navegador: Netlify Functions consulta Apps Script desde el servidor para evitar el bloqueo de CORS del navegador.
+- Si la cuenta de Google no permite acceso público a la implementación, Netlify mostrará un error de conexión; no hagas pública la hoja de cálculo, solo la implementación web como ya estaba configurada.
