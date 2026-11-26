@@ -129,7 +129,12 @@
       </div>
       <div class="grid gap-5 sm:grid-cols-2">
         <div>
-          <img id="detailImage" class="detail-image" alt="">
+          <div id="detailPhotoWrap" class="detail-photo-wrap">
+            <img id="detailImage" class="detail-image" alt="">
+            <button id="detailPrev" class="detail-arrow left" type="button" aria-label="Foto anterior" onclick="changeDetailImage(-1)">‹</button>
+            <button id="detailNext" class="detail-arrow right" type="button" aria-label="Foto siguiente" onclick="changeDetailImage(1)">›</button>
+            <span id="detailCounter" class="detail-counter"></span>
+          </div>
           <div id="detailGallery" class="mt-3 flex gap-2 overflow-x-auto pb-1"></div>
         </div>
         <div class="flex flex-col">
@@ -189,6 +194,9 @@ var deliveryMode = '';
 var activeProduct = null;
 var activeVariantIndex = -1;
 var toastTimer = null;
+var activeImages = [];
+var activeImageIndex = 0;
+var cardSwipeMoved = false;
 
 function money(value) {
   return 'S/ ' + Number(value || 0).toFixed(2);
@@ -272,9 +280,11 @@ function renderProducts() {
     card.className = 'product-card';
     card.setAttribute('role','button');
     card.setAttribute('tabindex','0');
+    var cardImages = product.images && product.images.length ? product.images.slice(0, 2) : (product.image ? [product.image] : []);
     card.innerHTML =
-      '<div class="relative">' +
-        '<img class="product-image" src="' + escapeHtml(product.image || '') + '" alt="' + escapeHtml(product.name) + '" loading="lazy" onerror="this.style.opacity=.15">' +
+      '<div class="card-photo-wrap relative">' +
+        '<img class="product-image card-main-image" src="' + escapeHtml(cardImages[0] || '') + '" alt="' + escapeHtml(product.name) + '" loading="lazy" onerror="this.style.opacity=.15">' +
+        (cardImages.length > 1 ? '<div class="photo-dots"><span class="photo-dot active"></span><span class="photo-dot"></span></div><span class="absolute bottom-3 left-3 rounded-full bg-black/70 px-2 py-1 text-[9px] text-white">Desliza ‹ ›</span>' : '') +
         '<span class="absolute left-3 top-3 rounded-full ' + (available ? 'bg-white text-black' : 'bg-neutral-700 text-white') + ' px-3 py-1 text-[9px] font-bold tracking-wider">' + (available ? 'DISPONIBLE' : 'SIN STOCK') + '</span>' +
         '<span class="absolute bottom-3 right-3 rounded-full bg-black/75 px-3 py-2 text-[9px] font-bold tracking-wider">VER PRODUCTO ↗</span>' +
       '</div>' +
@@ -283,7 +293,39 @@ function renderProducts() {
         '<h3 class="mt-1 min-h-10 text-sm font-bold">' + escapeHtml(product.name) + '</h3>' +
         '<div class="mt-2 flex items-center justify-between"><p class="text-sm font-bold">Desde ' + money(price) + '</p><span class="text-lg">＋</span></div>' +
       '</div>';
-    card.onclick = function(){ openProductModal(product); };
+    var photoWrap = card.querySelector('.card-photo-wrap');
+    var cardImg = card.querySelector('.card-main-image');
+    var dots = card.querySelectorAll('.photo-dot');
+    var currentCardImage = 0;
+    var touchStartX = 0;
+    var touchStartY = 0;
+    var didSwipe = false;
+    function showCardImage(index) {
+      if (cardImages.length < 2) return;
+      currentCardImage = (index + cardImages.length) % cardImages.length;
+      cardImg.src = cardImages[currentCardImage];
+      dots.forEach(function(dot, dotIndex) { dot.classList.toggle('active', dotIndex === currentCardImage); });
+    }
+    if (photoWrap && cardImages.length > 1) {
+      photoWrap.addEventListener('touchstart', function(e) {
+        touchStartX = e.changedTouches[0].clientX;
+        touchStartY = e.changedTouches[0].clientY;
+        didSwipe = false;
+      }, {passive:true});
+      photoWrap.addEventListener('touchend', function(e) {
+        var dx = e.changedTouches[0].clientX - touchStartX;
+        var dy = e.changedTouches[0].clientY - touchStartY;
+        if (Math.abs(dx) > 35 && Math.abs(dx) > Math.abs(dy)) {
+          didSwipe = true;
+          showCardImage(currentCardImage + (dx < 0 ? 1 : -1));
+          setTimeout(function(){ didSwipe = false; }, 350);
+        }
+      }, {passive:true});
+      photoWrap.addEventListener('click', function(e) {
+        if (didSwipe) { e.preventDefault(); e.stopPropagation(); }
+      }, true);
+    }
+    card.onclick = function(){ if (!didSwipe) openProductModal(product); };
     card.onkeydown = function(e){ if(e.key==='Enter' || e.key===' '){e.preventDefault();openProductModal(product);} };
     container.appendChild(card);
   });
@@ -294,14 +336,16 @@ function openProductModal(product) {
   activeVariantIndex = -1;
   document.getElementById('detailName').textContent = product.name;
   document.getElementById('detailPrice').textContent = product.variants.length ? 'Desde ' + money(Math.min.apply(null,product.variants.map(function(v){return v.precio;}))) : money(0);
-  var images = product.images && product.images.length ? product.images : (product.image ? [product.image] : []);
-  document.getElementById('detailImage').src = images[0] || '';
+  activeImages = (product.images && product.images.length ? product.images : (product.image ? [product.image] : [])).slice(0, 2);
+  activeImageIndex = 0;
   document.getElementById('detailGallery').innerHTML = '';
-  images.forEach(function(url,index){
+  activeImages.forEach(function(url,index){
     var thumb=document.createElement('img'); thumb.src=url; thumb.className='detail-thumb'+(index===0?' active':'');
-    thumb.onclick=function(){document.getElementById('detailImage').src=url;document.querySelectorAll('.detail-thumb').forEach(function(t){t.classList.remove('active');});thumb.classList.add('active');};
+    thumb.alt='Foto '+(index+1)+' de '+product.name;
+    thumb.onclick=function(){showDetailImage(index);};
     document.getElementById('detailGallery').appendChild(thumb);
   });
+  showDetailImage(0);
   var sizes=document.getElementById('detailSizes'); sizes.innerHTML='';
   product.variants.forEach(function(variant,index){
     var btn=document.createElement('button'); btn.className='size-btn'; btn.textContent=(variant.talla||'Única')+(variant.stock>0?'':' · AGOTADO'); btn.disabled=variant.stock<=0;
@@ -320,6 +364,36 @@ function openProductModal(product) {
   document.getElementById('detailAddBtn').textContent='AGREGAR AL CARRITO';
   document.getElementById('productModal').classList.add('open');
 }
+function showDetailImage(index) {
+  if (!activeImages.length) return;
+  activeImageIndex = (index + activeImages.length) % activeImages.length;
+  document.getElementById('detailImage').src = activeImages[activeImageIndex] || '';
+  document.getElementById('detailCounter').textContent = activeImages.length > 1 ? (activeImageIndex + 1) + ' / ' + activeImages.length : '';
+  document.getElementById('detailPrev').style.display = activeImages.length > 1 ? 'flex' : 'none';
+  document.getElementById('detailNext').style.display = activeImages.length > 1 ? 'flex' : 'none';
+  document.querySelectorAll('.detail-thumb').forEach(function(thumb, i) {
+    thumb.classList.toggle('active', i === activeImageIndex);
+  });
+}
+function changeDetailImage(direction) {
+  if (activeImages.length > 1) showDetailImage(activeImageIndex + direction);
+}
+(function enableDetailSwipe() {
+  var wrap = document.getElementById('detailPhotoWrap');
+  if (!wrap) return;
+  var startX = 0, startY = 0;
+  wrap.addEventListener('touchstart', function(e) {
+    startX = e.changedTouches[0].clientX;
+    startY = e.changedTouches[0].clientY;
+  }, {passive:true});
+  wrap.addEventListener('touchend', function(e) {
+    var dx = e.changedTouches[0].clientX - startX;
+    var dy = e.changedTouches[0].clientY - startY;
+    if (Math.abs(dx) > 35 && Math.abs(dx) > Math.abs(dy)) {
+      changeDetailImage(dx < 0 ? 1 : -1);
+    }
+  }, {passive:true});
+})();
 function closeProductModal(){document.getElementById('productModal').classList.remove('open');}
 function addSelectedDetailToCart(){
   if(!activeProduct || activeVariantIndex<0){showToast('Primero selecciona una talla');return;}
